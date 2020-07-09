@@ -1,6 +1,8 @@
+from os.path import exists
 from time import sleep
 from json import dumps, loads
 from random import choice, random, randrange
+from configparser import ConfigParser, NoSectionError, NoOptionError
 
 from requests import get, post
 from requests.utils import add_dict_to_cookiejar
@@ -8,7 +10,7 @@ from requests.utils import add_dict_to_cookiejar
 
 from cli import UIPrinter, Fore, Back, Style
 
-AUTHCODE = '将这个内容替换为您的Cookie里__jsluid_h=后面的内容'
+AUTHCODE = ''
 
 headers={
 	'Cookies': f'__jsluid_h={AUTHCODE}',
@@ -253,6 +255,12 @@ class Application(UIPrinter):
 		return res.text
 	def __init__(self):
 		UIPrinter.__init__(self, 'SECSA')
+	def set_password(self, v):
+		self.PASSWORD = v
+	def set_cookies(self, v):
+		self.COOKIES = v
+	def set_testtime(self, v):
+		self.TESTTIME = v
 
 class DefaultError(Exception):
 	'''不满足任一条件'''
@@ -267,13 +275,36 @@ class LoginPasswordUnmatch(Exception):
 	'''登录失败 密码错误 ID=2'''
 
 if __name__ == '__main__':
+	cfg = ConfigParser()
+	cfg.read('config.ini')
+	if not cfg.has_option('Cookies', '__jsluid_h') or \
+	   not cfg.has_option('SECSA', 'Password') or \
+	   not cfg.has_option('SECSA', 'TestTime'):
+		ui = UIPrinter('引导教程')
+		ui.note('欢迎来到SECSA作弊程序! 本教程会引导您如何优雅地刷试卷')
+		ui.warn('请注意! 本程序的作者不为任何您使用本程序所做出的行为负责')
+		ui.note('首先请打开这个地址 http://wsjy1.secsa.cn/contestClient/index.html?activityId=1005#')
+		ui.note('找到Cookie 复制__jsluid_h后面的一段到这里 然后按下回车')
+		ui.ask('__jsluid_h=')
+		cfg.add_section('Cookies')
+		cfg.set('Cookies', '__jsluid_h', input())
+		ui.note('请取一个注册时需要用的密码 该密码对网站拥有者可见')
+		ui.note('输入时没有显示 建议一次输入完成 输错请直接清空')
+		ui.ask(f'注册密码: {Fore.BLACK}{Back.BLACK}')
+		cfg.add_section('SECSA')
+		cfg.set('SECSA', 'Password', input())
+		print(f'{Style.RESET_ALL}', end='')
+		ui.note('请输入答题时间 必须是一个数字 单位: 秒 该数字越小 则在上海市的排名就越靠前')
+		ui.note('由于该网站没有对输入数据进行判断 您可以输入无限小的负数')
+		ui.ask('答题时间: ')
+		cfg.set('SECSA', 'TestTime', input())
+		ui.warn('您已完成引导教程! 如果以后您还想运行本引导 请直接删除config.ini文件')
+		with open('config.ini', 'w') as f:
+			cfg.write(f)
+		ui.succ('配置文件已保存')
 	app = Application()
-	if AUTHCODE == '将这个内容替换为您的Cookie里__jsluid_h=后面的内容':
-		app.fail('请打开本脚本源码 并将AUTHCODE的内容替换为您的Cookie')
-	app.ask(f'注册密码: {Fore.LIGHTYELLOW_EX}{Back.LIGHTYELLOW_EX}')
-	app.PASSWORD = input()
-	print(f'{Style.RESET_ALL}', end='')
-	app.ask('答题时间: ')
-	app.TESTTIME = int(input())
+	app.set_cookies(cfg.get('Cookies', '__jsluid_h'))
+	app.set_password(cfg.get('SECSA', 'Password'))
+	app.set_testtime(cfg.get('SECSA', 'TestTime'))
 	while True:
 		app.main()
